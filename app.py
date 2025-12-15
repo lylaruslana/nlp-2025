@@ -11,7 +11,7 @@ import streamlit.components.v1 as components
 # KONFIGURASI HALAMAN
 # -----------------------------------------------------------------------------
 st.set_page_config(page_title="Laporan Capaian NLP 2025", page_icon="💎", layout="wide")
-DEFAULT_FILE = Path("Form Capaian PRSDI 2025.xlsx")
+DEFAULT_FILE = Path("Form Capaian PRSDI 2025 final.xlsx")
 
 # -----------------------------------------------------------------------------
 # CSS INJECTION: FRAME BIRU MUDA & METRIC OVAL
@@ -19,17 +19,13 @@ DEFAULT_FILE = Path("Form Capaian PRSDI 2025.xlsx")
 st.markdown("""
     <style>
     /* 1. Frame Biru Muda di Sekeliling Halaman */
-    [data-testid="stAppViewContainer"]::before {
-        content: '';
-        position: fixed;
-        top: 10px;
-        left: 10px;
-        right: 10px;
-        bottom: 10px;
-        border: 5px solid #87CEFA;
-        border-radius: 10px;
-        z-index: 999999;
-        pointer-events: none;
+    [data-testid="stAppViewContainer"] {
+    border: 5px solid #87CEFA;
+    border-radius: 10px;
+    margin: 10px;
+    padding: 0;              /* biarkan block-container yang atur padding */
+    box-sizing: border-box;
+    background: transparent;
     }
     
     .block-container {
@@ -86,7 +82,7 @@ TIM_NLP_INTI = [
     "Dr. Eng. Ir Yuyun", "Ir. Andi Djalal Latief", "Dr. Rini Wijayanti",
     "Iftitahu Ni'mah", "Nuraisa Novia Hidayati", "Dr. Dipl.(FH) Ing Asril",
     "Ir. Gunarso", "Ir. Tri Sampurno", "Dr. Kokoy Siti Komariah", "Nuryani",
-    "Dian Isnaeni Nurul Afra", "Siti Saleha"
+    "Dian Isnaeni Nurul Afra", "Siti Saleha", "Yaniasih"
 ]
 
 # -----------------------------------------------------------------------------
@@ -359,7 +355,7 @@ df_table = df_table[df_table["kontributor_raw"].astype(str).str.contains(pattern
 unique_types = sorted(df_table["jenis_luaran"].unique())
 
 for tipe in unique_types:
-    with st.expander(f"📂 {tipe} (Total: {len(df_table[df_table['jenis_luaran']==tipe])})", expanded=False):
+    with st.expander(f"💎 {tipe} (Total: {len(df_table[df_table['jenis_luaran']==tipe])})", expanded=False):
         subset = df_table[df_table["jenis_luaran"] == tipe].copy()
         
         # --- GRAFIK KONTRIBUTOR (SORTED: Count DESC, Name ASC) ---
@@ -378,7 +374,7 @@ for tipe in unique_types:
             s_cat_core = s_cat_core.sort_values(by=["Jumlah", "Nama"], ascending=[True, False])
             
             if not s_cat_core.empty:
-                st.markdown(f"**Kontribusi Tim Inti di {tipe}:**")
+                st.markdown(f"**Kontribusi Tim di {tipe}:**")
                 dyn_height = max(200, len(s_cat_core) * 35)
                 fig_sub = px.bar(
                     s_cat_core, x="Jumlah", y="Nama", orientation='h', text="Jumlah",
@@ -462,7 +458,7 @@ if all_contribs:
     
     chart_placeholder = st.empty()
     
-    if st.button("🎲 Tampilkan Peringkat"):
+    if st.button(" Tampilkan Peringkat"):
         components.html("""
         <script>
         const doc = window.parent.document;
@@ -497,7 +493,7 @@ if all_contribs:
                 y="Nama", 
                 orientation='h', 
                 text="Jumlah Output",
-                title="✨ Peringkat Produktivitas Tim (Total Output)",
+                title="✨ Peringkat Berdasar Keterlibatan",
                 color="Jumlah Output",
                 color_continuous_scale="Viridis"
             )
