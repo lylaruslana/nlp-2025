@@ -1,6 +1,7 @@
 import re
 import time
 import random
+import zipfile
 from pathlib import Path
 import pandas as pd
 import streamlit as st
@@ -8,22 +9,24 @@ import plotly.express as px
 import streamlit.components.v1 as components
 
 # -----------------------------------------------------------------------------
-# KONFIGURASI HALAMAN
+# KONFIGURASI HALAMAN & FILE
 # -----------------------------------------------------------------------------
 st.set_page_config(page_title="Laporan Capaian NLP 2025", page_icon="💎", layout="wide")
-DEFAULT_FILE = Path("Form Capaian PRSDI 2025 final.xlsx")
+
+# DEFINISI NAMA FILE
+FILE_CAPAIAN = Path("Form Capaian PRSDI 2025 final.xlsx")
+FILE_TARGET = Path("Target dan Capaian KRNLP 2025.xlsx")
 
 # -----------------------------------------------------------------------------
-# CSS INJECTION: FRAME BIRU MUDA & METRIC OVAL
+# CSS INJECTION
 # -----------------------------------------------------------------------------
 st.markdown("""
     <style>
-    /* 1. Frame Biru Muda di Sekeliling Halaman */
     [data-testid="stAppViewContainer"] {
     border: 5px solid #87CEFA;
     border-radius: 10px;
     margin: 10px;
-    padding: 0;              /* biarkan block-container yang atur padding */
+    padding: 0;
     box-sizing: border-box;
     background: transparent;
     }
@@ -35,7 +38,6 @@ st.markdown("""
         padding-right: 3rem;
     }
 
-    /* 2. Styling untuk Metrik Oval (Pills) */
     .metric-container {
         display: flex;
         flex-wrap: wrap;
@@ -45,9 +47,9 @@ st.markdown("""
         margin-top: 10px;
     }
     .metric-pill {
-        background-color: #f0f8ff; /* AliceBlue background */
-        border: 1px solid #87CEFA; /* Border senada frame */
-        border-radius: 50px; /* Membuat bentuk oval */
+        background-color: #f0f8ff;
+        border: 1px solid #87CEFA;
+        border-radius: 50px;
         padding: 8px 20px;
         text-align: center;
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
@@ -195,7 +197,15 @@ def normalize_sheet(df: pd.DataFrame, jenis_luaran: str, sheet_code: str) -> pd.
     return out.dropna(subset=["judul", "kelompok_riset"], how="all")
 
 def load_data(excel_path):
-    xls = pd.ExcelFile(excel_path)
+    try:
+        xls = pd.ExcelFile(excel_path)
+    except zipfile.BadZipFile:
+        st.error(f"❌ **File Rusak:** File `{excel_path.name}` tidak dapat dibaca. Kemungkinan file corrupt, kosong (0 bytes), atau formatnya bukan .xlsx (misal CSV yang direname).")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"❌ Terjadi kesalahan saat membaca file `{excel_path.name}`: {e}")
+        return pd.DataFrame()
+
     all_dfs = []
     configs = [
         ("PI", "PI", "Publikasi Internasional"),
@@ -231,16 +241,16 @@ def load_data(excel_path):
 
 st.title("💎 Capaian Riset 2025: Pengolahan Bahasa Alami (NLP)")
 
-if not DEFAULT_FILE.exists():
-    st.error(f"⚠️ File data tidak ditemukan! Pastikan file `{DEFAULT_FILE}` ada di folder yang sama dengan script ini.")
+if not FILE_CAPAIAN.exists():
+    st.error(f"⚠️ File `{FILE_CAPAIAN}` tidak ditemukan! Pastikan file ada di folder ini.")
     st.stop()
 
-# 1. LOAD DATA
-with st.spinner("Memuat data..."):
-    df_all = load_data(DEFAULT_FILE)
+# 1. LOAD DATA UTAMA
+with st.spinner("Memuat data capaian..."):
+    df_all = load_data(FILE_CAPAIAN)
 
 if df_all.empty:
-    st.error("Data kosong atau format Excel tidak sesuai template.")
+    st.warning("⚠️ Data tidak dapat dimuat. Silakan cek pesan error di atas atau pastikan file Excel tidak rusak.")
     st.stop()
 
 # 2. AUTO-FILTER NLP
@@ -368,9 +378,6 @@ for tipe in unique_types:
             s_cat_core = s_cat[s_cat["Nama"].apply(is_core_team)].copy()
             
             # SORTING UTAMA: Jumlah (Ascending/Kecil->Besar), Nama (Descending/Z->A)
-            # Karena Plotly menggambar horizontal dari bawah ke atas, 
-            # item TERAKHIR di DataFrame akan muncul di PALING ATAS.
-            # Jadi kita mau: Jumlah Paling Besar di Akhir, Nama 'A' di Akhir (dibanding 'B' dengan jumlah sama).
             s_cat_core = s_cat_core.sort_values(by=["Jumlah", "Nama"], ascending=[True, False])
             
             if not s_cat_core.empty:
@@ -380,7 +387,6 @@ for tipe in unique_types:
                     s_cat_core, x="Jumlah", y="Nama", orientation='h', text="Jumlah",
                     color="Jumlah", color_continuous_scale="Viridis"
                 )
-                # Hapus categoryorder agar mengikuti urutan DataFrame yg sudah kita sort
                 fig_sub.update_layout(height=dyn_height, margin=dict(l=0, r=0, t=0, b=0))
                 st.plotly_chart(fig_sub, use_container_width=True)
         
@@ -404,9 +410,10 @@ for tipe in unique_types:
             cols_to_show = ["judul", "venue", "status", "kontributor_raw"]
             renames.update({"judul": "Nama Produk", "venue": "Kegiatan/Mitra", "status": "Status"})
 
+        # [MODIFIKASI] MENGHILANGKAN KOLOM NAMA SDM DI TABEL SDM MOBILITAS
         elif "Mobilitas" in tipe:
-            cols_to_show = ["judul", "status", "kontributor_raw"]
-            renames.update({"judul": "Nama SDM", "status": "Judul / Kegiatan"})
+            cols_to_show = ["status", "kontributor_raw"]
+            renames.update({"status": "Judul / Kegiatan"})
 
         elif "Studi" in tipe:
             cols_to_show = ["venue", "status", "kontributor_raw"]
@@ -437,14 +444,156 @@ for tipe in unique_types:
             hide_index=True
         )
 
+# =============================================================================
+# MONITOR TARGET & CAPAIAN
+# =============================================================================
+st.divider()
+st.header("💎 Monitor Target & Capaian (KRNLP 2025)")
+
+tab_inklusif, tab_eksklusif = st.tabs(["💎 Target Inklusif (Tim)", "💎 Target Eksklusif (Personal)"])
+
+if FILE_TARGET.exists():
+    
+    # --- TAB 1: INKLUSIF ---
+    with tab_inklusif:
+        try:
+            # Membaca Sheet "Target Inklusif"
+            df_ink = pd.read_excel(FILE_TARGET, sheet_name="Target Inklusif", header=1)
+            
+            # Bersihkan data
+            df_ink = df_ink.dropna(how='all', axis=0)
+            df_ink = df_ink.loc[:, ~df_ink.columns.str.contains('^Unnamed')] # Hapus kolom tanpa header
+            
+            # --- VISUALISASI ---
+            def extract_num(s):
+                if pd.isna(s): return 0
+                match = re.search(r'(\d+)', str(s))
+                return int(match.group(1)) if match else 0
+
+            df_chart_ink = df_ink.copy()
+            df_chart_ink['Num_Target'] = df_chart_ink['Jumlah Target'].apply(extract_num)
+            df_chart_ink['Num_Capaian'] = df_chart_ink['Jumlah Capaian'].apply(extract_num)
+            
+            # Melt data agar bisa diplot grouped bar
+            df_melt_ink = df_chart_ink.melt(
+                id_vars=["Item"], 
+                value_vars=["Num_Target", "Num_Capaian"], 
+                var_name="Tipe", 
+                value_name="Jumlah"
+            )
+            df_melt_ink["Tipe"] = df_melt_ink["Tipe"].replace({"Num_Target": "Target", "Num_Capaian": "Capaian"})
+            
+            c_ink_1, c_ink_2 = st.columns([1, 1.5])
+            
+            with c_ink_1:
+                st.dataframe(df_ink, use_container_width=True, hide_index=True)
+            
+            with c_ink_2:
+                fig_ink = px.bar(
+                    df_melt_ink, 
+                    x="Item", 
+                    y="Jumlah", 
+                    color="Tipe", 
+                    barmode="group",
+                    title="Perbandingan Target vs Capaian",
+                    color_discrete_map={"Target": "#FF7F50", "Capaian": "#40E0D0"} # Orange & Turquoise
+                )
+                st.plotly_chart(fig_ink, use_container_width=True)
+
+        except zipfile.BadZipFile:
+            st.error(f"❌ File '{FILE_TARGET.name}' rusak atau bukan format .xlsx yang valid.")
+        except Exception as e:
+            st.warning(f"Info: {e}. Pastikan sheet 'Target Inklusif' tersedia.")
+
+    # --- TAB 2: EKSKLUSIF ---
+    with tab_eksklusif:
+        try:
+            # Membaca Sheet "Target Eksklusif"
+            # Data dimulai dari baris ke-4 (index 3) di Excel
+            df_eks_raw = pd.read_excel(FILE_TARGET, sheet_name="Target Eksklusif", header=None, skiprows=3)
+            
+            # AMBIL 4 KATEGORI EKSKLUSIF: Pub Int, KI, Studi, KKM
+            df_eks_clean = df_eks_raw.iloc[:, 1:10].copy()
+            
+            # Rename Kolom
+            df_eks_clean.columns = [
+                "Nama", 
+                "Pub. Int (T)", "Pub. Int (C)", 
+                "KI (T)", "KI (C)",
+                "Studi (T)", "Studi (C)",
+                "KKM (T)", "KKM (C)"
+            ]
+            
+            # Bersihkan baris
+            df_eks_clean = df_eks_clean.dropna(subset=["Nama"])
+            df_eks_clean = df_eks_clean[df_eks_clean["Nama"].str.lower() != 'total']
+            
+            # Bersihkan angka (ganti '-' dengan 0)
+            num_cols = [c for c in df_eks_clean.columns if c != "Nama"]
+            for c in num_cols:
+                df_eks_clean[c] = pd.to_numeric(
+                    df_eks_clean[c].astype(str).str.replace('-', '0'), 
+                    errors='coerce'
+                ).fillna(0)
+
+            # MENAMPILKAN DATA (TANPA TOTAL AKUMULASI)
+            st.dataframe(df_eks_clean, use_container_width=True, hide_index=True)
+            
+            st.markdown("### 💎 Rincian Target vs Capaian per Kategori")
+            
+            # SIAPKAN DATA UNTUK GRAFIK RINCI (FACETED)
+            rows = []
+            for _, row in df_eks_clean.iterrows():
+                name = row['Nama']
+                # Pub Int
+                rows.append({'Nama': name, 'Kategori': 'Pub. Int', 'Tipe': 'Target', 'Jumlah': row['Pub. Int (T)']})
+                rows.append({'Nama': name, 'Kategori': 'Pub. Int', 'Tipe': 'Capaian', 'Jumlah': row['Pub. Int (C)']})
+                # KI
+                rows.append({'Nama': name, 'Kategori': 'KI', 'Tipe': 'Target', 'Jumlah': row['KI (T)']})
+                rows.append({'Nama': name, 'Kategori': 'KI', 'Tipe': 'Capaian', 'Jumlah': row['KI (C)']})
+                # Studi
+                rows.append({'Nama': name, 'Kategori': 'Studi', 'Tipe': 'Target', 'Jumlah': row['Studi (T)']})
+                rows.append({'Nama': name, 'Kategori': 'Studi', 'Tipe': 'Capaian', 'Jumlah': row['Studi (C)']})
+                # KKM
+                rows.append({'Nama': name, 'Kategori': 'KKM', 'Tipe': 'Target', 'Jumlah': row['KKM (T)']})
+                rows.append({'Nama': name, 'Kategori': 'KKM', 'Tipe': 'Capaian', 'Jumlah': row['KKM (C)']})
+            
+            df_detail = pd.DataFrame(rows)
+            
+            # Buat Facet Plot Vertikal (1 Kolom agar mudah dibandingkan per orang)
+            # facet_row="Kategori" akan membuat 4 baris chart (Pub, KI, Studi, KKM)
+            fig_eks_detail = px.bar(
+                df_detail, 
+                x="Nama", 
+                y="Jumlah", 
+                color="Tipe", 
+                barmode="group",
+                facet_col="Kategori", 
+                facet_col_wrap=1,  # Stack secara vertikal
+                height=1000,       # Tinggi disesuaikan
+                title="Detail Target vs Capaian per Kategori",
+                color_discrete_map={"Target": "#FF7F50", "Capaian": "#40E0D0"}
+            )
+            # Pastikan label X (Nama) terlihat di semua subplot
+            fig_eks_detail.update_xaxes(matches='x', showticklabels=True)
+            st.plotly_chart(fig_eks_detail, use_container_width=True)
+            
+        except zipfile.BadZipFile:
+            st.error(f"❌ File '{FILE_TARGET.name}' rusak atau bukan format .xlsx yang valid.")
+        except Exception as e:
+            st.warning(f"Info: {e}. Pastikan sheet 'Target Eksklusif' tersedia.")
+else:
+    st.error(f"⚠️ File '{FILE_TARGET}' tidak ditemukan di direktori yang sama.")
+
 # -----------------------------------------------------------------------------
-# FITUR: WALL OF FAME (DENGAN ANIMASI & SORTING)
+# FITUR: WALL OF FAME (DIPINDAHKAN KE PALING BAWAH)
 # -----------------------------------------------------------------------------
 st.divider()
 st.markdown('<div id="top-kontributor"></div>', unsafe_allow_html=True)
 st.header("💎 Top Kontributor")
 st.caption("")
 
+# [PERBAIKAN] LOGIKA PERHITUNGAN KONTRIBUTOR DITARUH DISINI
 all_contribs = []
 for raw in df_kr["kontributor_raw"].dropna(): all_contribs.extend(split_contributors(raw))
 
@@ -497,7 +646,6 @@ if all_contribs:
                 color="Jumlah Output",
                 color_continuous_scale="Viridis"
             )
-            # Hapus categoryorder forced, pakai urutan DF
             fig_final.update_layout(height=final_height)
             chart_placeholder.plotly_chart(fig_final, use_container_width=True)
         else:
