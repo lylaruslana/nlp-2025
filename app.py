@@ -367,7 +367,7 @@ if all_contribs:
     # Tombol Aksi
     if st.button("🎲 Tampilkan Peringkat"):
         # 1. Animasi Mengacak (Shuffling Effect)
-        progress_text = "Mengacak data..."
+        progress_text = "Menngolah data..."
         my_bar = st.progress(0, text=progress_text)
 
         for i in range(15): # Loop animasi 15 frame
@@ -380,7 +380,7 @@ if all_contribs:
             })
             
             # Tampilkan chart sementara (dummy)
-            fig_temp = px.bar(random_data, x="Jumlah Output", y="Nama", orientation='h', title="🎲 Mengacak...")
+            fig_temp = px.bar(random_data, x="Jumlah Output", y="Nama", orientation='h', title="🎲 Mengolah...")
             fig_temp.update_layout(xaxis=dict(range=[0, 30])) # Lock axis biar ga goyang
             chart_placeholder.plotly_chart(fig_temp, use_container_width=True)
             my_bar.progress((i + 1) * 6, text=progress_text)
