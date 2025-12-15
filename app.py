@@ -348,8 +348,8 @@ for tipe in unique_types:
 # FITUR BARU: WALL OF FAME (DENGAN ANIMASI)
 # -----------------------------------------------------------------------------
 st.divider()
-st.header("🏆 Wall of Fame: Top Kontributor")
-st.caption("Klik tombol di bawah untuk melihat peringkat produktivitas personel Tim Inti.")
+st.header("🏆 Top Kontributor")
+st.caption("")
 
 # Siapkan data REAL terlebih dahulu
 all_contribs = []
@@ -365,7 +365,7 @@ if all_contribs:
     chart_placeholder = st.empty()
     
     # Tombol Aksi
-    if st.button("🎲 Acak & Tampilkan Peringkat"):
+    if st.button("🎲 Tampilkan Peringkat"):
         # 1. Animasi Mengacak (Shuffling Effect)
         progress_text = "Mengacak data..."
         my_bar = st.progress(0, text=progress_text)
