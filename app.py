@@ -5,19 +5,20 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+import streamlit.components.v1 as components
 
 # -----------------------------------------------------------------------------
 # KONFIGURASI HALAMAN
 # -----------------------------------------------------------------------------
-st.set_page_config(page_title="Laporan Capaian NLP 2025", layout="wide")
+st.set_page_config(page_title="Laporan Capaian NLP 2025", page_icon="💎", layout="wide")
 DEFAULT_FILE = Path("Form Capaian PRSDI 2025.xlsx")
 
 # -----------------------------------------------------------------------------
-# CSS INJECTION (FRAME BIRU MUDA #87CEFA)
+# CSS INJECTION: FRAME BIRU MUDA & METRIC OVAL
 # -----------------------------------------------------------------------------
 st.markdown("""
     <style>
-    /* Membuat garis pinggir (Frame) */
+    /* 1. Frame Biru Muda di Sekeliling Halaman */
     [data-testid="stAppViewContainer"]::before {
         content: '';
         position: fixed;
@@ -36,6 +37,42 @@ st.markdown("""
         padding-bottom: 2rem;
         padding-left: 3rem;
         padding-right: 3rem;
+    }
+
+    /* 2. Styling untuk Metrik Oval (Pills) */
+    .metric-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 15px;
+        justify-content: center;
+        margin-bottom: 20px;
+        margin-top: 10px;
+    }
+    .metric-pill {
+        background-color: #f0f8ff; /* AliceBlue background */
+        border: 1px solid #87CEFA; /* Border senada frame */
+        border-radius: 50px; /* Membuat bentuk oval */
+        padding: 8px 20px;
+        text-align: center;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        min-width: 140px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+    .metric-label {
+        font-size: 0.85rem;
+        color: #555;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .metric-value {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #000;
+        margin-top: 2px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -196,13 +233,13 @@ def load_data(excel_path):
 # 3. UI STREAMLIT
 # -----------------------------------------------------------------------------
 
-st.title("📊 Capaian Riset 2025: Pengolahan Bahasa Alami (NLP)")
+st.title("💎 Capaian Riset 2025: Pengolahan Bahasa Alami (NLP)")
 
 if not DEFAULT_FILE.exists():
     st.error(f"⚠️ File data tidak ditemukan! Pastikan file `{DEFAULT_FILE}` ada di folder yang sama dengan script ini.")
     st.stop()
 
-# 1. LOAD DATA OTOMATIS
+# 1. LOAD DATA
 with st.spinner("Memuat data..."):
     df_all = load_data(DEFAULT_FILE)
 
@@ -210,7 +247,7 @@ if df_all.empty:
     st.error("Data kosong atau format Excel tidak sesuai template.")
     st.stop()
 
-# 2. AUTO-FILTER KHUSUS NLP
+# 2. AUTO-FILTER NLP
 all_kr = sorted([x for x in df_all["kelompok_riset"].dropna().unique() if str(x).strip()])
 target_kr = next((x for x in all_kr if "nlp" in x.lower() or "bahasa alami" in x.lower()), None)
 
@@ -220,9 +257,7 @@ else:
     st.error("Data KR 'Pengolahan Bahasa Alami' tidak ditemukan di file ini.")
     st.stop()
 
-# --- METRICS LENGKAP ---
-st.divider()
-
+# --- HITUNG METRICS ---
 dana_total = df_kr[df_kr["jenis_luaran"].str.contains("Dana", na=False)]["nilai_num"].sum()
 hki_count = len(df_kr[df_kr["jenis_luaran"].str.contains("Kekayaan", na=False)])
 pi_count = len(df_kr[df_kr["jenis_luaran"].str.contains("Publikasi Internasional", na=False)])
@@ -231,20 +266,43 @@ pwrp_count = len(df_kr[df_kr["jenis_luaran"].str.contains("Purwarupa", na=False)
 sdm_vr_count = len(df_kr[df_kr["jenis_luaran"].str.contains("Mobilitas", na=False)])
 sdm_studi_count = len(df_kr[df_kr["jenis_luaran"].str.contains("Studi", na=False)])
 
-row1 = st.columns(4)
-row1[0].metric("Dana Eksternal", f"Rp {dana_total:,.0f}", border=True)
-row1[1].metric("Kekayaan Intelektual", hki_count, border=True)
-row1[2].metric("Publikasi Internasional", pi_count, border=True)
-row1[3].metric("Publikasi Nasional", pn_count, border=True)
-
-row2 = st.columns(3)
-row2[0].metric("Purwarupa", pwrp_count, border=True)
-row2[1].metric("SDM (Mobilitas/VR)", sdm_vr_count, border=True)
-row2[2].metric("SDM (Studi Lanjut)", sdm_studi_count, border=True)
+# --- TAMPILKAN METRICS (BENTUK OVAL) ---
+st.markdown(f"""
+<div class="metric-container">
+    <div class="metric-pill">
+        <div class="metric-label">Dana Eks.</div>
+        <div class="metric-value">Rp {dana_total:,.0f}</div>
+    </div>
+    <div class="metric-pill">
+        <div class="metric-label">HKI</div>
+        <div class="metric-value">{hki_count}</div>
+    </div>
+    <div class="metric-pill">
+        <div class="metric-label">Pub. Internasional</div>
+        <div class="metric-value">{pi_count}</div>
+    </div>
+    <div class="metric-pill">
+        <div class="metric-label">Pub. Nasional</div>
+        <div class="metric-value">{pn_count}</div>
+    </div>
+    <div class="metric-pill">
+        <div class="metric-label">Purwarupa</div>
+        <div class="metric-value">{pwrp_count}</div>
+    </div>
+    <div class="metric-pill">
+        <div class="metric-label">SDM (Mobilitas/VR)</div>
+        <div class="metric-value">{sdm_vr_count}</div>
+    </div>
+    <div class="metric-pill">
+        <div class="metric-label">SDM (Studi)</div>
+        <div class="metric-value">{sdm_studi_count}</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 # --- VISUALISASI SEBARAN ---
 st.divider()
-st.subheader("📈 Sebaran Distribusi (Seluruh KR)")
+st.subheader("💎 Sebaran Distribusi")
 
 c1, c2 = st.columns([1, 1])
 with c1:
@@ -291,7 +349,7 @@ def color_status(val):
 
 # --- TABEL DETAIL ---
 st.divider()
-st.subheader("📋 Rincian Capaian per Kategori")
+st.subheader("💎 Rincian Capaian per Kategori")
 
 df_table = df_kr.copy()
 patterns = [re.escape(name.split(",")[0].strip()) for name in TIM_NLP_INTI]
@@ -304,7 +362,7 @@ for tipe in unique_types:
     with st.expander(f"📂 {tipe} (Total: {len(df_table[df_table['jenis_luaran']==tipe])})", expanded=False):
         subset = df_table[df_table["jenis_luaran"] == tipe].copy()
         
-        # --- GRAFIK KONTRIBUTOR ---
+        # --- GRAFIK KONTRIBUTOR (SORTED: Count DESC, Name ASC) ---
         cat_contribs = []
         for raw in subset["kontributor_raw"].dropna(): cat_contribs.extend(split_contributors(raw))
         
@@ -313,6 +371,12 @@ for tipe in unique_types:
             s_cat.columns = ["Nama", "Jumlah"]
             s_cat_core = s_cat[s_cat["Nama"].apply(is_core_team)].copy()
             
+            # SORTING UTAMA: Jumlah (Ascending/Kecil->Besar), Nama (Descending/Z->A)
+            # Karena Plotly menggambar horizontal dari bawah ke atas, 
+            # item TERAKHIR di DataFrame akan muncul di PALING ATAS.
+            # Jadi kita mau: Jumlah Paling Besar di Akhir, Nama 'A' di Akhir (dibanding 'B' dengan jumlah sama).
+            s_cat_core = s_cat_core.sort_values(by=["Jumlah", "Nama"], ascending=[True, False])
+            
             if not s_cat_core.empty:
                 st.markdown(f"**Kontribusi Tim Inti di {tipe}:**")
                 dyn_height = max(200, len(s_cat_core) * 35)
@@ -320,77 +384,112 @@ for tipe in unique_types:
                     s_cat_core, x="Jumlah", y="Nama", orientation='h', text="Jumlah",
                     color="Jumlah", color_continuous_scale="Viridis"
                 )
-                fig_sub.update_layout(yaxis={'categoryorder':'total ascending'}, height=dyn_height, margin=dict(l=0, r=0, t=0, b=0))
+                # Hapus categoryorder agar mengikuti urutan DataFrame yg sudah kita sort
+                fig_sub.update_layout(height=dyn_height, margin=dict(l=0, r=0, t=0, b=0))
                 st.plotly_chart(fig_sub, use_container_width=True)
         
-        # --- TABEL ---
-        show_df = subset[["judul", "venue", "status", "nilai_num", "kontributor_raw"]].rename(columns={
-            "judul": "Judul / Kegiatan", "venue": "Venue / Mitra",
-            "status": "Status", "nilai_num": "Nilai (Rp)",
-            "kontributor_raw": "Kontributor"
-        })
+        # --- TABEL KUSTOMISASI PER TIPE ---
+        cols_to_show = []
+        renames = {"kontributor_raw": "Kontributor"}
+
+        if "Dana" in tipe:
+            cols_to_show = ["judul", "venue", "nilai_num", "kontributor_raw"]
+            renames.update({"judul": "Judul / Kegiatan", "venue": "Venue / Mitra", "nilai_num": "Nilai (Rp)"})
+
+        elif "Kekayaan" in tipe:
+            cols_to_show = ["judul", "status", "kontributor_raw"]
+            renames.update({"judul": "Judul / KI", "status": "Status"})
+
+        elif "Publikasi" in tipe:
+            cols_to_show = ["judul", "venue", "status", "kontributor_raw"]
+            renames.update({"judul": "Judul Artikel", "venue": "Nama Jurnal/Conf", "status": "Status"})
+
+        elif "Purwarupa" in tipe:
+            cols_to_show = ["judul", "venue", "status", "kontributor_raw"]
+            renames.update({"judul": "Nama Produk", "venue": "Kegiatan/Mitra", "status": "Status"})
+
+        elif "Mobilitas" in tipe:
+            cols_to_show = ["judul", "status", "kontributor_raw"]
+            renames.update({"judul": "Nama SDM", "status": "Judul / Kegiatan"})
+
+        elif "Studi" in tipe:
+            cols_to_show = ["venue", "status", "kontributor_raw"]
+            renames.update({"venue": "Universitas / Tujuan", "status": "Status"})
+
+        else:
+            cols_to_show = ["judul", "venue", "status", "nilai_num", "kontributor_raw"]
+            renames.update({"judul": "Judul", "venue": "Venue", "status": "Status", "nilai_num": "Nilai (Rp)"})
+
+        show_df = subset[cols_to_show].rename(columns=renames)
         
-        styled_df = show_df.style\
-            .map(color_status, subset=['Status'])\
-            .format({"Nilai (Rp)": "Rp {:,.0f}"})
+        # Styling conditionally
+        styler = show_df.style
+        
+        status_col = None
+        if "Status" in show_df.columns: status_col = "Status"
+        elif "Judul / Kegiatan" in show_df.columns and "Mobilitas" in tipe: status_col = "Judul / Kegiatan"
+        
+        if status_col:
+            styler = styler.map(color_status, subset=[status_col])
+            
+        if "Nilai (Rp)" in show_df.columns:
+            styler = styler.format({"Nilai (Rp)": "Rp {:,.0f}"})
         
         st.dataframe(
-            styled_df, 
+            styler, 
             use_container_width=True, 
-            hide_index=True,
-            column_config={
-                "Kontributor": st.column_config.TextColumn(width="medium"),
-                "Judul / Kegiatan": st.column_config.TextColumn(width="large")
-            }
+            hide_index=True
         )
 
 # -----------------------------------------------------------------------------
-# FITUR BARU: WALL OF FAME (DENGAN ANIMASI)
+# FITUR: WALL OF FAME (DENGAN ANIMASI & SORTING)
 # -----------------------------------------------------------------------------
 st.divider()
-st.header("🏆 Top Kontributor")
+st.markdown('<div id="top-kontributor"></div>', unsafe_allow_html=True)
+st.header("💎 Top Kontributor")
 st.caption("")
 
-# Siapkan data REAL terlebih dahulu
 all_contribs = []
 for raw in df_kr["kontributor_raw"].dropna(): all_contribs.extend(split_contributors(raw))
 
 if all_contribs:
     s_contrib = pd.Series(all_contribs).value_counts().reset_index()
     s_contrib.columns = ["Nama", "Jumlah Output"]
-    # Filter hanya Tim Inti
     s_contrib_core = s_contrib[s_contrib["Nama"].apply(is_core_team)].copy()
     
-    # Placeholder untuk grafik
+    # SORTING FINAL (Sama seperti grafik di atas)
+    s_contrib_core = s_contrib_core.sort_values(by=["Jumlah Output", "Nama"], ascending=[True, False])
+    
     chart_placeholder = st.empty()
     
-    # Tombol Aksi
     if st.button("🎲 Tampilkan Peringkat"):
-        # 1. Animasi Mengacak (Shuffling Effect)
-        progress_text = "Menngolah data..."
+        components.html("""
+        <script>
+        const doc = window.parent.document;
+        const el = doc.getElementById('top-kontributor');
+        if (el) el.scrollIntoView({behavior: 'smooth', block: 'start'});
+        </script>
+        """, height=0)
+
+        progress_text = "Mengolah data..."
         my_bar = st.progress(0, text=progress_text)
 
-        for i in range(15): # Loop animasi 15 frame
-            time.sleep(0.1) # Kecepatan animasi
-            
-            # Buat data dummy random dari nama tim inti
+        for i in range(15):
+            time.sleep(0.1)
             random_data = pd.DataFrame({
                 "Nama": random.sample(TIM_NLP_INTI, 10),
                 "Jumlah Output": [random.randint(1, 20) for _ in range(10)]
             })
-            
-            # Tampilkan chart sementara (dummy)
+            # Acak grafik dummy
             fig_temp = px.bar(random_data, x="Jumlah Output", y="Nama", orientation='h', title="🎲 Mengolah...")
-            fig_temp.update_layout(xaxis=dict(range=[0, 30])) # Lock axis biar ga goyang
+            fig_temp.update_layout(xaxis=dict(range=[0, 30]))
             chart_placeholder.plotly_chart(fig_temp, use_container_width=True)
             my_bar.progress((i + 1) * 6, text=progress_text)
             
         my_bar.empty()
         
-        # 2. Tampilkan Data Asli (Final Reveal)
         if not s_contrib_core.empty:
-            st.balloons() # Efek Balon
-            
+            st.balloons()
             final_height = max(500, len(s_contrib_core) * 40)
             fig_final = px.bar(
                 s_contrib_core, 
@@ -398,15 +497,14 @@ if all_contribs:
                 y="Nama", 
                 orientation='h', 
                 text="Jumlah Output",
-                title="✨ Peringkat Produktivitas Tim Inti (Total Output)",
+                title="✨ Peringkat Produktivitas Tim (Total Output)",
                 color="Jumlah Output",
                 color_continuous_scale="Viridis"
             )
-            fig_final.update_layout(yaxis={'categoryorder':'total ascending'}, height=final_height)
-            
-            # Replace placeholder dengan grafik asli
+            # Hapus categoryorder forced, pakai urutan DF
+            fig_final.update_layout(height=final_height)
             chart_placeholder.plotly_chart(fig_final, use_container_width=True)
         else:
-            chart_placeholder.warning("Belum ada data output yang terekam untuk Tim Inti.")
+            chart_placeholder.warning("Belum ada data output yang terekam untuk Tim.")
 else:
     st.info("Belum ada data kontributor.")
