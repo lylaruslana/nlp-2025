@@ -381,7 +381,7 @@ for tipe in unique_types:
             s_cat_core = s_cat_core.sort_values(by=["Jumlah", "Nama"], ascending=[True, False])
             
             if not s_cat_core.empty:
-                st.markdown(f"**Kontribusi Tim di {tipe}:**")
+                st.markdown(f"**Keterlibatan Tim di {tipe}:**")
                 dyn_height = max(200, len(s_cat_core) * 35)
                 fig_sub = px.bar(
                     s_cat_core, x="Jumlah", y="Nama", orientation='h', text="Jumlah",
